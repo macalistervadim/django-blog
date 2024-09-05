@@ -1,40 +1,46 @@
-import django.db.models
-import django.utils.timezone
 import django.contrib.auth.models as django_models_auth
+from django.db import models
+from django.urls import reverse
+import django.utils.timezone
 
 
-class PublishedManager(django.db.models.Manager):
-    def get_queryset(self) -> django.db.models.QuerySet:
+class PublishedManager(models.Manager):
+    def get_queryset(self) -> models.QuerySet:
         return super().get_queryset().filter(status=Post.Status.PUBLISHED)
 
 
-class Post(django.db.models.Model):
+class Post(models.Model):
 
-    class Status(django.db.models.TextChoices):
+    class Status(models.TextChoices):
         DRAFT = "DF", "Draft"
         PUBLISHED = "PB", "Published"
 
-    title = django.db.models.CharField(max_length=250)
-    slug = django.db.models.SlugField(max_length=250)
-    author = django.db.models.ForeignKey(
+    title = models.CharField(max_length=250)
+    slug = models.SlugField(
+        max_length=250,
+        unique_for_date="publish",
+    )
+    author = models.ForeignKey(
         django_models_auth.User,
-        on_delete=django.db.models.CASCADE,
+        on_delete=models.CASCADE,
         related_name="blog_posts",
     )
-    body = django.db.models.TextField()
-    publish = django.db.models.DateTimeField(default=django.utils.timezone.now)
-    created = django.db.models.DateTimeField(auto_now_add=True)
-    updated = django.db.models.DateTimeField(auto_now=True)
-    status = django.db.models.CharField(
-        max_length=2, choices=Status.choices, default=Status.DRAFT
+    body = models.TextField()
+    publish = models.DateTimeField(default=django.utils.timezone.now)
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+    status = models.CharField(
+        max_length=2,
+        choices=Status.choices,
+        default=Status.DRAFT,
     )
-    objects = django.db.models.Manager()
+    objects = models.Manager()
     published = PublishedManager()
 
     class Meta:
         ordering = ["-publish"]
         indexes = [
-            django.db.models.Index(fields=["-publish"]),
+            models.Index(fields=["-publish"]),
         ]
 
     def __repr__(self) -> str:
@@ -54,3 +60,14 @@ class Post(django.db.models.Model):
 
     def __str__(self) -> str:
         return self.title
+
+    def get_absolute_url(self) -> str:
+        return reverse(
+            "blog:post_detail",
+            args=[
+                self.publish.year,
+                self.publish.month,
+                self.publish.day,
+                self.slug,
+            ],
+        )
