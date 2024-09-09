@@ -11,4 +11,5 @@ urlpatterns = [
         blog.views.post_detail,
         name="post_detail",
     ),
+    path("<int:post_id>/share/", blog.views.post_share, name="post_share"),
 ]
