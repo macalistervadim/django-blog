@@ -1,9 +1,5 @@
-from django.http import HttpRequest, HttpResponse
-import django.shortcuts
+from django.views.generic.base import TemplateView
 
 
-def homepage(request: HttpRequest) -> HttpResponse:
-    return django.shortcuts.render(
-        request=request,
-        template_name="homepage/homepage.html",
-    )
+class HomePageView(TemplateView):
+    template_name = "homepage/homepage.html"

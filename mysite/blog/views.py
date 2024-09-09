@@ -1,9 +1,9 @@
-from typing import TypeAlias
+from typing import Any, Mapping, TypeAlias
 
 import django.core.mail
 from django.http import HttpRequest, HttpResponse
 import django.shortcuts
-from django.views.generic import ListView
+from django.views.generic import FormView, ListView
 
 import blog.forms
 import blog.models
@@ -16,41 +16,44 @@ class PostListView(ListView):
     template_name = "blog/post/list.html"
 
 
-def post_share(request: HttpRequest, post_id: int) -> HttpResponse:
-    post = django.shortcuts.get_object_or_404(
-        klass=blog.models.Post,
-        id=post_id,
-        status=blog.models.Post.Status.PUBLISHED,
-    )
+class PostShareView(FormView):
+    form_class = blog.forms.EmailPostForm
+    template_name = "blog/post/share.html"
 
-    sent = False
+    def get_post(self):
+        return django.shortcuts.get_object_or_404(
+            klass=blog.models.Post,
+            id=self.kwargs["post_id"],
+            status=blog.models.Post.Status.PUBLISHED,
+        )
 
-    if request.method == "POST":
-        form = blog.forms.EmailPostForm(request.POST)
-        if form.is_valid():
-            cd = form.cleaned_data
-            post_url = request.build_absolute_uri(post.get_absolute_url())
-            subject = f"{cd['name']} recommends you read " f"{post.title}"
-            message = (
-                f"Read {post.title} at {post_url}\n\n"
-                f"{cd["name"]}'s comments: {cd["comments"]}"
-            )
-            django.core.mail.send_mail(
-                subject=subject,
-                message=message,
-                from_email="macalistervadim@yandex.ru",
-                recipient_list=[cd["to"]],
-            )
-            sent = True
+    def get_context_data(self, **kwargs) -> Mapping[str, Any]:
+        context = super().get_context_data(**kwargs)
+        context["post"] = self.get_post()
+        context["sent"] = getattr(self, "sent", False)
+        return context
 
-    else:
-        form = blog.forms.EmailPostForm()
+    def form_valid(self, form) -> HttpResponse:
+        post = self.get_post()
+        cd = form.cleaned_data
+        post_url = self.request.build_absolute_uri(post.get_absolute_url())
+        subject = f"{cd['name']} recommends you read {post.title}"
+        message = (
+            f"Read {post.title} at {post_url}\n\n"
+            f"{cd['name']}'s comments: {cd['comments']}"
+        )
+        django.core.mail.send_mail(
+            subject=subject,
+            message=message,
+            from_email="macalistervadim@yandex.ru",
+            recipient_list=[cd["to"]],
+        )
+        self.sent = True
+        return self.render_to_response(self.get_context_data(form=form))
 
-    return django.shortcuts.render(
-        request=request,
-        template_name="blog/post/share.html",
-        context={"post": post, "form": form, "send": sent},
-    )
+    def form_invalid(self, form) -> HttpResponse:
+        self.sent = False
+        return super().form_invalid(form)
 
 
 Year: TypeAlias = int
