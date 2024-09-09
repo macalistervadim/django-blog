@@ -1,29 +1,35 @@
 from typing import TypeAlias
 
-from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
 from django.http import HttpRequest, HttpResponse
 import django.shortcuts
+from django.views.generic import ListView
 
 import blog.models
+import blog.forms
 
 
-def post_list(request: HttpRequest) -> HttpResponse:
-    post_list = blog.models.Post.published.all()
-    paginator = Paginator(post_list, 2)
-    page_number = request.GET.get("page", 1)
+class PostListView(ListView):
+    queryset = blog.models.Post.published.all()
+    context_object_name = "posts"
+    paginate_by = 2
+    template_name = "blog/post/list.html"
 
-    try:
-        posts = paginator.page(page_number)
-    except PageNotAnInteger:
-        posts = paginator.page(1)
-    except EmptyPage:
-        posts = paginator.page(paginator.num_pages)
 
-    return django.shortcuts.render(
-        request=request,
-        template_name="blog/post/list.html",
-        context={"posts": posts},
+def post_share(request: HttpRequest, post_id: int) -> HttpResponse:
+    post = django.shortcuts.get_object_or_404(
+        blog.models.Post,
+        id=post_id,
+        status=blog.models.Post.Status.PUBLISHED,
     )
+    if request.method == "POST":
+        form = blog.forms.EmailPostForm(request.POST)
+        if form.is_valid():
+            cd = form.cleaned_data
+
+    else:
+        form = blog.forms.EmailPostForm()
+    
+    return django.shortcuts.render(request=request, template_name="blog/post/share.html", context={"post": post, "form": form})
 
 
 Year: TypeAlias = int

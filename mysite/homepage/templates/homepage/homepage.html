@@ -25,8 +25,8 @@
 <body>
     <header class="d-flex justify-content-center py-3 border-bottom">
         <ul class="nav nav-pills">
-          <li class="nav-item"><a href="#" class="nav-link active" aria-current="page">Главная страница</a></li>
-          <li class="nav-item"><a href="#" class="nav-link">Страница блога</a></li>
+          <li class="nav-item"><a href="{% url 'homepage:homepage' %}" class="nav-link" aria-current="page">Главная страница</a></li>
+          <li class="nav-item"><a href="{% url 'blog:post_list' %}" class="nav-link">Страница блога</a></li>
         </ul>
     </header>
     
@@ -35,14 +35,14 @@
         <div class="col-lg-8 mx-auto">
           <p class="fs-5 mb-4 text-center">Данный блог создан в образовательных целях. Здесь вы можете найти много полезной информации и также обсуждать с другими пользователями различные темы.</p>
           <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
-            <button type="button" class="btn btn-outline-info btn-lg px-4 me-sm-3 fw-bold">Перейти в блог</button>
+            <a href="{% url 'blog:post_list' %}"><button type="button" class="btn btn-outline-info btn-lg px-4 me-sm-3 fw-bold">Перейти в блог</button></a>
           </div>
         </div>
     </div>
-
-    <!-- Добавленный блок -->
     <div class="container content-section">
-        <h2 class="text-center">Популярные статьи</h2>
+        <h1 class="text-center">Популярные статьи</h1>
+        <br>
+        <br>
         <div class="row">
             <div class="col-md-4">
                 <div class="card bg-dark text-white mb-4">

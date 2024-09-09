@@ -167,3 +167,7 @@ cython_debug/
 
 # MacOS
 .DS_Store
+
+# certificate
+.pem
+*.pem
