@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from blog.models import Post
+from blog.models import Comment, Post
 
 
 @admin.register(Post)
@@ -28,4 +28,25 @@ class PostAdmin(admin.ModelAdmin):
     ordering = [
         Post.status.field.name,
         Post.publish.field.name,
+    ]
+
+
+@admin.register(Comment)
+class CommentAdmin(admin.ModelAdmin):
+    list_display = [
+        Comment.name.field.name,
+        Comment.email.field.name,
+        Comment.post.field.name,
+        Comment.created.field.name,
+        Comment.active.field.name,
+    ]
+    list_filter = [
+        Comment.active.field.name,
+        Comment.created.field.name,
+        Comment.updated.field.name,
+    ]
+    search_fields = [
+        Comment.name.field.name,
+        Comment.email.field.name,
+        Comment.body.field.name,
     ]
