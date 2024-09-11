@@ -5,16 +5,34 @@ from django.http import HttpRequest, HttpResponse
 import django.shortcuts
 from django.views.generic import FormView, ListView
 from django.views.decorators.http import require_POST
+from taggit.models import Tag
 
 import blog.forms
 import blog.models
 
 
 class PostListView(ListView):
-    queryset = blog.models.Post.published.all()
+    model = blog.models.Post
     context_object_name = "posts"
     paginate_by = 2
     template_name = "blog/post/list.html"
+
+    def get_queryset(self):
+        queryset = blog.models.Post.published.all()
+        tag_slug = self.kwargs.get('tag_slug')
+        if tag_slug:
+            tag = django.shortcuts.get_object_or_404(Tag, slug=tag_slug)
+            queryset = queryset.filter(tags__in=[tag])
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        tag_slug = self.kwargs.get('tag_slug')
+        if tag_slug:
+            context['tag'] = django.shortcuts.get_object_or_404(Tag, slug=tag_slug)
+        else:
+            context['tag'] = None
+        return context
 
 
 class PostShareView(FormView):

@@ -6,6 +6,7 @@ app_name = "blog"
 
 urlpatterns = [
     path("", blog.views.PostListView.as_view(), name="post_list"),
+    path("tag/<slug:tag_slug>/", blog.views.PostListView.as_view(), name="post_list_by_tag"),
     path(
         "<int:year>/<int:month>/<int:day>/<slug:post>",
         blog.views.post_detail,
