@@ -6,6 +6,7 @@ import django.shortcuts
 from django.views.generic import FormView, ListView
 from django.views.decorators.http import require_POST
 from taggit.models import Tag
+from django.db.models import Count
 
 import blog.forms
 import blog.models
@@ -97,11 +98,14 @@ def post_detail(
     )
     comments = post_.comments.filter(active=True)
     form = blog.forms.CommentForm()
+    post_tags_ids = post_.tags.values_list("id", flat=True)
+    similar_posts = blog.models.Post.published.filter(tags__in=post_tags_ids).exclude(id=post_.id)
+    similar_posts = similar_posts.annotate(same_tags=Count("tags")).order_by("-same_tags", "-publish")[:4]
 
     return django.shortcuts.render(
         request=request,
         template_name="blog/post/detail.html",
-        context={"post": post_, "comments": comments, "form": form},
+        context={"post": post_, "comments": comments, "form": form, "similar_posts": similar_posts},
     )
 
 
