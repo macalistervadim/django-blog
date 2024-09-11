@@ -16,4 +16,5 @@ urlpatterns = [
         blog.views.PostShareView.as_view(),
         name="post_share",
     ),
+    path("<int:post_id>/comment/", blog.views.post_comment, name='post_comment'),
 ]

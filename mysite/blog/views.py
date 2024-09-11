@@ -4,6 +4,7 @@ import django.core.mail
 from django.http import HttpRequest, HttpResponse
 import django.shortcuts
 from django.views.generic import FormView, ListView
+from django.views.decorators.http import require_POST
 
 import blog.forms
 import blog.models
@@ -76,9 +77,35 @@ def post_detail(
         publish__month=month,
         publish__day=day,
     )
+    comments = post_.comments.filter(active=True)
+    form = blog.forms.CommentForm()
 
     return django.shortcuts.render(
         request=request,
         template_name="blog/post/detail.html",
-        context={"post": post_},
+        context={"post": post_, "comments": comments, "form": form},
+    )
+
+
+@require_POST
+def post_comment(request: HttpRequest, post_id: int):
+    post = django.shortcuts.get_object_or_404(
+        klass=blog.models.Post,
+        id=post_id,
+        status=blog.models.Post.Status.PUBLISHED,
+    )
+    comment = None
+    form = blog.forms.CommentForm(data=request.POST)
+
+    if form.is_valid():
+        comment = form.save(commit=False)
+        comment.post = post
+        comment.save()
+
+    return django.shortcuts.render(
+        request=request,
+        template_name="blog/post/comment.html",
+        context={"post": post,
+                 "form": form,
+                 "comment": comment},
     )
