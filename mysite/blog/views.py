@@ -1,12 +1,11 @@
-from typing import Any, Mapping, TypeAlias
+from typing import Any
 
 import django.core.mail
-from django.http import HttpRequest, HttpResponse
+from django.db.models import Count, QuerySet
+from django.http import HttpResponse
 import django.shortcuts
-from django.views.generic import FormView, ListView
-from django.views.decorators.http import require_POST
+from django.views.generic import DetailView, FormView, ListView
 from taggit.models import Tag
-from django.db.models import Count
 
 import blog.forms
 import blog.models
@@ -14,51 +13,56 @@ import blog.models
 
 class PostListView(ListView):
     model = blog.models.Post
-    context_object_name = "posts"
-    paginate_by = 2
-    template_name = "blog/post/list.html"
+    context_object_name: str = "posts"
+    paginate_by: int = 2
+    template_name: str = "blog/post/list.html"
 
-    def get_queryset(self):
-        queryset = blog.models.Post.published.all()
-        tag_slug = self.kwargs.get('tag_slug')
+    def get_queryset(self) -> QuerySet[blog.models.Post]:
+        queryset: QuerySet[blog.models.Post] = blog.models.Post.published.all()
+        tag_slug: str | None = self.kwargs.get("tag_slug")
         if tag_slug:
-            tag = django.shortcuts.get_object_or_404(Tag, slug=tag_slug)
+            tag: Tag = django.shortcuts.get_object_or_404(Tag, slug=tag_slug)
             queryset = queryset.filter(tags__in=[tag])
         return queryset
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        tag_slug = self.kwargs.get('tag_slug')
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context: dict[str, Any] = super().get_context_data(**kwargs)
+        tag_slug: str | None = self.kwargs.get("tag_slug")
         if tag_slug:
-            context['tag'] = django.shortcuts.get_object_or_404(Tag, slug=tag_slug)
+            context["tag"] = django.shortcuts.get_object_or_404(
+                Tag, slug=tag_slug,
+            )
         else:
-            context['tag'] = None
+            context["tag"] = None
         return context
 
 
 class PostShareView(FormView):
     form_class = blog.forms.EmailPostForm
-    template_name = "blog/post/share.html"
+    template_name: str = "blog/post/share.html"
+    sent: bool = False  # Track email sending status
 
-    def get_post(self):
+    def get_post(self) -> blog.models.Post:
         return django.shortcuts.get_object_or_404(
             klass=blog.models.Post,
             id=self.kwargs["post_id"],
             status=blog.models.Post.Status.PUBLISHED,
         )
 
-    def get_context_data(self, **kwargs) -> Mapping[str, Any]:
-        context = super().get_context_data(**kwargs)
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context: dict[str, Any] = super().get_context_data(**kwargs)
         context["post"] = self.get_post()
-        context["sent"] = getattr(self, "sent", False)
+        context["sent"] = self.sent
         return context
 
-    def form_valid(self, form) -> HttpResponse:
+    def form_valid(self, form: blog.forms.EmailPostForm) -> HttpResponse:
         post = self.get_post()
-        cd = form.cleaned_data
-        post_url = self.request.build_absolute_uri(post.get_absolute_url())
-        subject = f"{cd['name']} recommends you read {post.title}"
-        message = (
+        cd: dict[str, Any] = form.cleaned_data
+        post_url: str = self.request.build_absolute_uri(
+            post.get_absolute_url(),
+        )
+        subject: str = f"{cd['name']} recommends you read {post.title}"
+        message: str = (
             f"Read {post.title} at {post_url}\n\n"
             f"{cd['name']}'s comments: {cd['comments']}"
         )
@@ -71,63 +75,78 @@ class PostShareView(FormView):
         self.sent = True
         return self.render_to_response(self.get_context_data(form=form))
 
-    def form_invalid(self, form) -> HttpResponse:
+    def form_invalid(self, form: blog.forms.EmailPostForm) -> HttpResponse:
         self.sent = False
         return super().form_invalid(form)
 
 
-Year: TypeAlias = int
-Day: TypeAlias = int
-Month: TypeAlias = int
+class PostDetailView(DetailView):
+    model = blog.models.Post
+    template_name: str = "blog/post/detail.html"
+    context_object_name: str = "post"
+
+    def get_object(self) -> blog.models.Post:
+        return django.shortcuts.get_object_or_404(
+            blog.models.Post,
+            status=blog.models.Post.Status.PUBLISHED,
+            slug=self.kwargs["post"],
+            publish__year=self.kwargs["year"],
+            publish__month=self.kwargs["month"],
+            publish__day=self.kwargs["day"],
+        )
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context: dict[str, Any] = super().get_context_data(**kwargs)
+        post: blog.models.Post = self.get_object()
+        comments: QuerySet[blog.models.Comment] = post.comments.filter(
+            active=True,
+        )
+        form = blog.forms.CommentForm()
+        post_tags_ids = post.tags.values_list("id", flat=True)
+        similar_posts: QuerySet[blog.models.Post] = (
+            blog.models.Post.published.filter(
+                tags__in=post_tags_ids,
+            )
+            .exclude(id=post.id)
+            .annotate(
+                same_tags=Count("tags"),
+            )
+            .order_by("-same_tags", "-publish")[:4]
+        )
+
+        context["comments"] = comments
+        context["form"] = form
+        context["similar_posts"] = similar_posts
+        return context
 
 
-def post_detail(
-    request: HttpRequest,
-    year: Year,
-    month: int,
-    day: int,
-    post: str,  # slug
-) -> HttpResponse:
-    post_ = django.shortcuts.get_object_or_404(
-        klass=blog.models.Post,
-        status=blog.models.Post.Status.PUBLISHED,
-        slug=post,
-        publish__year=year,
-        publish__month=month,
-        publish__day=day,
-    )
-    comments = post_.comments.filter(active=True)
-    form = blog.forms.CommentForm()
-    post_tags_ids = post_.tags.values_list("id", flat=True)
-    similar_posts = blog.models.Post.published.filter(tags__in=post_tags_ids).exclude(id=post_.id)
-    similar_posts = similar_posts.annotate(same_tags=Count("tags")).order_by("-same_tags", "-publish")[:4]
+class PostCommentView(FormView):
+    template_name: str = "blog/post/comment.html"
+    form_class = blog.forms.CommentForm
 
-    return django.shortcuts.render(
-        request=request,
-        template_name="blog/post/detail.html",
-        context={"post": post_, "comments": comments, "form": form, "similar_posts": similar_posts},
-    )
+    def get_post(self) -> blog.models.Post:
+        return django.shortcuts.get_object_or_404(
+            klass=blog.models.Post,
+            id=self.kwargs["post_id"],
+            status=blog.models.Post.Status.PUBLISHED,
+        )
 
-
-@require_POST
-def post_comment(request: HttpRequest, post_id: int):
-    post = django.shortcuts.get_object_or_404(
-        klass=blog.models.Post,
-        id=post_id,
-        status=blog.models.Post.Status.PUBLISHED,
-    )
-    comment = None
-    form = blog.forms.CommentForm(data=request.POST)
-
-    if form.is_valid():
-        comment = form.save(commit=False)
+    def form_valid(self, form: blog.forms.CommentForm) -> HttpResponse:
+        post: blog.models.Post = self.get_post()
+        comment: blog.models.Comment = form.save(commit=False)
         comment.post = post
         comment.save()
 
-    return django.shortcuts.render(
-        request=request,
-        template_name="blog/post/comment.html",
-        context={"post": post,
-                 "form": form,
-                 "comment": comment},
-    )
+        return self.render_to_response(
+            self.get_context_data(form=form, post=post, comment=comment),
+        )
+
+    def form_invalid(self, form: blog.forms.CommentForm) -> HttpResponse:
+        return self.render_to_response(
+            self.get_context_data(form=form, post=self.get_post()),
+        )
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context: dict[str, Any] = super().get_context_data(**kwargs)
+        context["post"] = self.get_post()
+        return context
