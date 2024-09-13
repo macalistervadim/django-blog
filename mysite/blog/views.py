@@ -30,7 +30,8 @@ class PostListView(ListView):
         tag_slug: str | None = self.kwargs.get("tag_slug")
         if tag_slug:
             context["tag"] = django.shortcuts.get_object_or_404(
-                Tag, slug=tag_slug,
+                Tag,
+                slug=tag_slug,
             )
         else:
             context["tag"] = None
