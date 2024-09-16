@@ -1,11 +1,13 @@
 from typing import Any
 
+from django.contrib.postgres.search import SearchVector
 import django.core.mail
 from django.db.models import Count, QuerySet
 from django.http import HttpResponse
 import django.shortcuts
 from django.views.generic import DetailView, FormView, ListView
 from taggit.models import Tag
+
 
 import blog.forms
 import blog.models
@@ -151,3 +153,23 @@ class PostCommentView(FormView):
         context: dict[str, Any] = super().get_context_data(**kwargs)
         context["post"] = self.get_post()
         return context
+
+
+def post_search(request):
+    form = blog.forms.SearchForm()
+    query = None
+    results = []
+
+    if "query" in request.GET:
+        form = blog.forms.SearchForm(request.GET)
+        if form.is_valid():
+            query = form.cleaned_data["query"]
+            results = blog.models.Post.published.annotate(
+                search=SearchVector("title", "body"),
+            ).filter(search=query)
+
+    return django.shortcuts.render(
+        request,
+        "blog/post/search.html",
+        {"form": form, "query": query, "results": results},
+    )

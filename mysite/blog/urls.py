@@ -1,7 +1,7 @@
 from django.urls import path
 
-import blog.views
 import blog.feeds
+import blog.views
 
 
 app_name = "blog"
@@ -29,4 +29,5 @@ urlpatterns = [
         name="post_comment",
     ),
     path("feed/", blog.feeds.LatestPostsFeed(), name="post_feed"),
+    path("search/", blog.views.post_search, name="post_search"),
 ]

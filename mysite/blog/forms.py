@@ -18,3 +18,7 @@ class CommentForm(forms.ModelForm):
             blog.models.Comment.email.field.name,
             blog.models.Comment.body.field.name,
         ]
+
+
+class SearchForm(forms.Form):
+    query = forms.CharField()
