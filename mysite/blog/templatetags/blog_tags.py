@@ -1,4 +1,5 @@
 from django import template
+from django.db.models import Count, QuerySet
 
 from blog.models import Post, PublishedManager
 
@@ -17,3 +18,10 @@ def show_latest_posts(count: int = 5) -> dict[str, PublishedManager]:
         :count
     ]
     return {"latest_posts": latest_posts}
+
+
+@register.simple_tag
+def get_most_commented_posts(count: int = 5) -> QuerySet[PublishedManager]:
+    return Post.published.annotate(
+        total_comments=Count("comments")
+    ).order_by("-total_comments")[:count]
