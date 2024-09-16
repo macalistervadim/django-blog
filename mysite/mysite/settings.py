@@ -23,6 +23,8 @@ DEBUG = load_bool("DJANGO_DEBUG", False)
 
 ALLOWED_HOSTS = load_list("DJANGO_ALLOWED_HOSTS", default="*")
 
+SITE_ID = 1
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -33,6 +35,8 @@ INSTALLED_APPS = [
     "blog.apps.BlogConfig",
     "homepage.apps.HomepageConfig",
     "taggit",
+    "django.contrib.sites",
+    "django.contrib.sitemaps",
 ]
 
 MIDDLEWARE = [
