@@ -171,3 +171,6 @@ cython_debug/
 # certificate
 .pem
 *.pem
+
+#fixtures
+*.json

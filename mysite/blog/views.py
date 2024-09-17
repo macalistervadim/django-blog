@@ -3,7 +3,7 @@ from typing import Any
 from django.contrib.postgres.search import SearchVector
 import django.core.mail
 from django.db.models import Count, QuerySet
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpRequest
 import django.shortcuts
 from django.views.generic import DetailView, FormView, ListView
 from taggit.models import Tag
@@ -155,21 +155,22 @@ class PostCommentView(FormView):
         return context
 
 
-def post_search(request):
-    form = blog.forms.SearchForm()
-    query = None
-    results = []
+class PostSearchView(FormView):
+    template_name: str = "blog/post/search.html"
+    form_class = blog.forms.SearchForm
 
-    if "query" in request.GET:
-        form = blog.forms.SearchForm(request.GET)
-        if form.is_valid():
+    def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        form: blog.forms.SearchForm = self.form_class(request.GET)
+        query = request.GET.get("query", None)
+        results = []
+
+        if form.is_valid() and query:
             query = form.cleaned_data["query"]
             results = blog.models.Post.published.annotate(
-                search=SearchVector("title", "body"),
+                search=SearchVector("title", "body")
             ).filter(search=query)
 
-    return django.shortcuts.render(
-        request,
-        "blog/post/search.html",
-        {"form": form, "query": query, "results": results},
-    )
+        return self.render_to_response(
+            self.get_context_data(form=form, results=results, query=query)
+        )
+

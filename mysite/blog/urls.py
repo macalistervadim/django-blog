@@ -29,5 +29,5 @@ urlpatterns = [
         name="post_comment",
     ),
     path("feed/", blog.feeds.LatestPostsFeed(), name="post_feed"),
-    path("search/", blog.views.post_search, name="post_search"),
+    path("search/", blog.views.PostSearchView.as_view(), name="post_search"),
 ]
