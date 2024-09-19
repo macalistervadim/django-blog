@@ -1,6 +1,10 @@
 from typing import Any
 
-from django.contrib.postgres.search import SearchVector
+from django.contrib.postgres.search import (
+    SearchQuery,
+    SearchRank,
+    SearchVector,
+)
 import django.core.mail
 from django.db.models import Count, QuerySet
 from django.http import HttpRequest, HttpResponse
@@ -160,7 +164,10 @@ class PostSearchView(FormView):
     form_class = blog.forms.SearchForm
 
     def get(
-        self, request: HttpRequest, *args: Any, **kwargs: Any,
+        self,
+        request: HttpRequest,
+        *args: Any,
+        **kwargs: Any,
     ) -> HttpResponse:
         form: blog.forms.SearchForm = self.form_class(request.GET)
         query = request.GET.get("query", None)
@@ -168,9 +175,16 @@ class PostSearchView(FormView):
 
         if form.is_valid() and query:
             query = form.cleaned_data["query"]
-            results = blog.models.Post.published.annotate(
-                search=SearchVector("title", "body"),
-            ).filter(search=query)
+            search_vector = SearchVector("title", "body")
+            search_query = SearchQuery(query)
+            results = (
+                blog.models.Post.published.annotate(
+                    search=search_vector,
+                    rank=SearchRank(search_vector, search_query),
+                )
+                .filter(search=search_query)
+                .order_by("-rank")
+            )
 
         return self.render_to_response(
             self.get_context_data(form=form, results=results, query=query),
